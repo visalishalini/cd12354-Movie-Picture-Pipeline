@@ -16,6 +16,7 @@ RUN apk update && \
 
 RUN mkdir -p /var/www/app && mkdir /app
 
+# Copy dependdency files.
 COPY Pipfile* /app
 RUN cd /app && pipenv install --system --deploy
 
