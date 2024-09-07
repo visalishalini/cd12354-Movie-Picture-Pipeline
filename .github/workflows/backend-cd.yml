@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'starter/frontend/**' # Trigger on frontend code changes
+      - 'starter/backend/**' # Trigger on backend code changes
   workflow_dispatch: # Allows manual trigger
 
 jobs:
@@ -66,12 +66,17 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ vars.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
       - name: Log in to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v1
         with:
-          region: ${{ secrets.AWS_REGION }}
-          access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Build and tag Docker image
         run: |
@@ -81,7 +86,7 @@ jobs:
       
       - name: Push image to ECR
         run: |
-          export ECR_REPO_URL=${{ secrets.ECR_REPO_URL }}
+          export ECR_REPO_URL=${{ vars.ECR_REPO_URL }}
           docker tag mp-backend:${{ github.sha }} $ECR_REPO_URL:backend-${{ github.sha }}
           docker push $ECR_REPO_URL:backend-${{ github.sha }}
 
@@ -99,18 +104,18 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          region: ${{ secrets.AWS_REGION }}
-          access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-access-key-id: ${{ vars.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Update kubeconfig
         run: |
-          aws eks update-kubeconfig --name <EKS_CLUSTER_NAME> --region ${{ secrets.AWS_REGION }}
+          aws eks update-kubeconfig --name ${{ vars.EKS_CLUSTER_NAME }} --region ${{ vars.AWS_REGION }}
 
       - name: Set image in Kubernetes manifests
         run: |
           cd starter/backend/k8s
-          export ECR_REPO_URL=${{ secrets.ECR_REPO_URL }}
+          export ECR_REPO_URL=${{ vars.ECR_REPO_URL }}
           export IMAGE_TAG=$ECR_REPO_URL:backend-${{ github.sha }}
           kustomize edit set image backend=$IMAGE_TAG
 
@@ -118,4 +123,3 @@ jobs:
         run: |
           cd starter/backend/k8s
           kustomize build | kubectl apply -f -
-
