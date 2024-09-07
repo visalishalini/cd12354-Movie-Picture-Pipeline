@@ -4,6 +4,8 @@ on:
   pull_request:
     branches:
       - main
+    paths:
+      - 'starter/backend/**' # Trigger on backend code changes
   workflow_dispatch:
 
 jobs:
