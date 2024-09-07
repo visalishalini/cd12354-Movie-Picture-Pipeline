@@ -1,0 +1,121 @@
+name: Backend Continuous Deployment
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'starter/frontend/**' # Trigger on frontend code changes
+  workflow_dispatch: # Allows manual trigger
+
+jobs:
+  lint:
+    name: Lint the code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      
+      - name: Install dependencies
+        run: |
+          cd starter/backend
+          pip install pipenv
+          pipenv install --dev
+
+      - name: Run linter
+        run: |
+          cd starter/backend
+          pipenv run lint
+
+  test:
+    name: Run tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      
+      - name: Install dependencies
+        run: |
+          cd starter/backend
+          pip install pipenv
+          pipenv install --dev
+
+      - name: Run tests
+        run: |
+          cd starter/backend
+          pipenv run test
+
+  build:
+    name: Build the Docker image
+    runs-on: ubuntu-latest
+    needs: [lint, test] # Ensure lint and test jobs are successful before building
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+        with:
+          region: ${{ secrets.AWS_REGION }}
+          access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Build and tag Docker image
+        run: |
+          cd starter/backend
+          export IMAGE_TAG=mp-backend:${{ github.sha }}
+          docker build -t $IMAGE_TAG .
+      
+      - name: Push image to ECR
+        run: |
+          export ECR_REPO_URL=${{ secrets.ECR_REPO_URL }}
+          docker tag mp-backend:${{ github.sha }} $ECR_REPO_URL:backend-${{ github.sha }}
+          docker push $ECR_REPO_URL:backend-${{ github.sha }}
+
+  deploy:
+    name: Deploy to EKS
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          region: ${{ secrets.AWS_REGION }}
+          access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --name <EKS_CLUSTER_NAME> --region ${{ secrets.AWS_REGION }}
+
+      - name: Set image in Kubernetes manifests
+        run: |
+          cd starter/backend/k8s
+          export ECR_REPO_URL=${{ secrets.ECR_REPO_URL }}
+          export IMAGE_TAG=$ECR_REPO_URL:backend-${{ github.sha }}
+          kustomize edit set image backend=$IMAGE_TAG
+
+      - name: Deploy to Kubernetes
+        run: |
+          cd starter/backend/k8s
+          kustomize build | kubectl apply -f -
+
