@@ -109,8 +109,8 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-region: ${{ vars.AWS_REGION }}
-          access-key-id: ${{ vars.AWS_ACCESS_KEY_ID }}
-          secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-access-key-id: ${{ vars.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       - name: Update kubeconfig
         run: |
