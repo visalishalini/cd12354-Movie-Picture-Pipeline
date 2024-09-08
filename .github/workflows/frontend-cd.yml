@@ -93,7 +93,7 @@ jobs:
 
       - name: Push image to ECR
         run: |
-          export ECR_REPO_URL=${{ secrets.ECR_REPO_URL }}
+          export ECR_REPO_URL=${{ vars.ECR_FRONT_REPO_URL }}
           docker tag mp-frontend:${{ github.sha }} $ECR_REPO_URL:frontend-${{ github.sha }}
           docker push $ECR_REPO_URL:frontend-${{ github.sha }}
 
@@ -119,7 +119,7 @@ jobs:
       - name: Set image in Kubernetes manifests
         run: |
           cd starter/frontend/k8s
-          export ECR_REPO_URL=${{ vars.ECR_REPO_URL }}
+          export ECR_REPO_URL=${{ vars.ECR_FRONT_REPO_URL }}
           export IMAGE_TAG=$ECR_REPO_URL:frontend-${{ github.sha }}
           kustomize edit set image frontend=$IMAGE_TAG
 
