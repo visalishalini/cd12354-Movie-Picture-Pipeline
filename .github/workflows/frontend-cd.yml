@@ -79,7 +79,7 @@ jobs:
       - name: Build and tag Docker image
         run: |
           cd starter/frontend
-          export REACT_APP_MOVIE_API_URL=http://localhost:5000
+          export REACT_APP_MOVIE_API_URL=http://a4d295dc2fa3b4ecfb28e3d05ce09b6a-361389146.us-east-1.elb.amazonaws.com:80
           export IMAGE_TAG=mp-frontend:${{ github.sha }}
           docker build --build-arg REACT_APP_MOVIE_API_URL=$REACT_APP_MOVIE_API_URL -t $IMAGE_TAG .
 
